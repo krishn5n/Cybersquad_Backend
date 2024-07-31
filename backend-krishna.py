@@ -1,6 +1,7 @@
 from flask import Flask, request,jsonify
 from flask_cors import CORS
 from flask_mysqldb import MySQL
+
 import datetime as dt
 import google.generativeai as genai
 import re
