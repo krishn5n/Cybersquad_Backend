@@ -10,3 +10,4 @@ google-auth==2.32.0
 google-auth-httplib2==0.2.0
 google-generativeai==0.7.2
 googleapis-common-protos==1.63.2
+psycopg2-binary==2.9.6  # Add this line
