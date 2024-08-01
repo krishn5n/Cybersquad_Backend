@@ -17,6 +17,60 @@ model = genai.GenerativeModel('gemini-1.5-flash')
 
 CORS(app)
 
+
+@app.route('/signin',methods=['POST'])
+def signin():
+    try:
+        body = request.json
+        email = body['email']
+        passw = body['pass']
+        with db.engine.connect() as connection:
+            query = text("Select * from users where email = :email and password = :pass")
+            result = connection.execute(query,{
+                "email":email,
+                "pass":passw
+            }).fetchone()
+
+            if(result):
+                return jsonify({'signin':True})
+            else:
+                return jsonify({'signin':False})
+    except Exception as e:
+        return jsonify({'Message':f"{e}"})
+    
+@app.route('/signup',methods=['POST'])
+def signup():
+    try:
+        body = request.json
+        name = body['name']
+        phone = body['phone']
+        age = body['age']
+        email = body['email']
+        passw = body['pass']
+        usage = body['usage']
+        with db.engine.connect() as connec:
+            query = text('INSERT INTO users VALUES (:email, :passw, :age, :usage, :phn, NULL,:name)')
+            connec.execute(query,{
+                "email":email,
+                "passw":passw,
+                "age":int(age),
+                "usage":usage,
+                "phn":int(phone),
+                "name":name
+            })
+            connec.commit()
+            return jsonify({'Message':"Success"})
+    except Exception as e:
+        return jsonify({'Message':f"{e}"})
+
+@app.route('/tests',methods=['POST'])
+def test():
+    with db.engine.connect() as connec:
+        query = text("Select * from users")
+        result = connec.execute(query).fetchall()
+
+        return jsonify({'Message':f"{result}"})
+
 @app.route('/balanceinfo', methods=['POST'])
 def balancecheck():
     data = request.json
@@ -88,6 +142,7 @@ def addspend():
                 "expensetype": expensetype,
                 "amt": amt
             })
+            connection.commit()
 
             # Adding to monthexpense
             query = text("SELECT amount FROM monthamt WHERE email = :email AND amounttype = :expensetype AND monthno = :month AND year = :year")
@@ -117,7 +172,6 @@ def addspend():
                     "expensetype": expensetype,
                     "amt": amt
                 })
-
             connection.commit()
 
         return jsonify({'message': 'User updated successfully'}), 200
@@ -131,12 +185,15 @@ def addfixed():
     expensename = data['expensename']
     amt = int(data['amount'])
     expensetype = data['amounttype']
-    query = text("INSERT INTO fixedexpense VALUES (%s, %s, %s, %s)")
+    #print(email,expensename,amt,expensetype)
+    #print(type(email),type(expensename),type(amt),type(expensetype))
+    query = text("INSERT INTO fixedexpense VALUES (:email, :expensename, :amt, :expensetype)")
     # Execute the query using SQLAlchemy's connection
+    #print(query)
     with db.engine.connect() as conn:
-        conn.execute(query, (email, expensename, amt, expensetype))
-    
-    return jsonify({'message': 'User updated successfully'}), 200
+        conn.execute(query, {"email":email, "expensename":expensename, "amt":amt, "expensetype":expensetype})
+        conn.commit()
+        return jsonify({'message': 'User updated successfully'}), 200
 
 
 @app.route('/influxlist',methods=['GET'])
@@ -144,7 +201,18 @@ def influxlist():
     query = text("Select amountname,amount from fixedexpense where amounttype='inflow'")
     with db.engine.connect() as connection:
         object = connection.execute(query).fetchall()
-    return jsonify({'Values':object})
+        connection.commit()
+        send = []
+        for i in object:
+            temp = []
+            for j in i:
+                #print(type(j))
+                if type(j).__name__ == "str":
+                    temp.append(j.rstrip())
+                else:
+                    temp.append(j)
+            send.append(temp)
+    return jsonify({'Values':send})
 
 @app.route('/addinflux',methods=['POST'])
 def addinflux():
@@ -159,6 +227,7 @@ def addinflux():
             "earnname":earnname,
             "amt":amt
         })
+        connection.commit()
     return jsonify({'Message':'Earning Added Successfully'})
 
 
@@ -166,13 +235,22 @@ def addinflux():
 def latestspend():
     data=request.json
     email=data['email']
-    query = 'SELECT expensename,expensetype,expenseamount,dateofadd FROM allexpense where email=:email ORDER BY dateofadd DESC LIMIT 5;'
+    query = text("SELECT expensename,expensetype,expenseamount,dateofadd FROM allexpense where email=:email ORDER BY dateofadd DESC LIMIT 5;")
     result = []
     with db.engine.connect() as connection:
         result = connection.execute(query,{
             "email":email
         }).fetchall()
-        return jsonify({'spendlist':result})
+        send = []
+        for i in result:
+            temp = []
+            for j in i:
+                if type(j).__name__ == "str":
+                    temp.append(j.rstrip())
+                else:
+                    temp.append(j)
+            send.append(temp)
+        return jsonify({'spendlist':send})
 
 @app.route('/bargraph',methods=['POST'])
 def bargraph():
@@ -195,16 +273,19 @@ def bargraph():
                 months.append(month)
             else:
                 months.append(month-i)
+            
             result = connection.execute(query,{
                 "email":email,
                 "month":month-i,
                 "year":year
             }).fetchall()
 
+            connection.commit()
             for j in result:
-                if j[0]=="unexpected":
+                find = j[0].rstrip()
+                if find=="unexpected":
                     unexpected.append(j[1])
-                elif j[0]=="variable":
+                elif find=="variable":
                     variable.append(j[1])
                 else:   
                     casual.append(j[1])
@@ -214,11 +295,27 @@ def bargraph():
         result = connection.execute(query,{
             "email":email
         }).fetchall()
+        connection.commit()
         for i in result:
-            if i[1]!="inflow":
+            find = i[1].rstrip()
+            if find!="inflow":
                 recurring+=i[0]
     return jsonify({'casual':casual,'unexpected':unexpected,'variable':variable,'recurring':recurring,'months':months})
 
+@app.route('/addamtsave',methods=['POST'])
+def addamtsave():
+    body = request.json
+    email = body['email']
+    amtsave = int(body['amtsave'])
+
+    with db.engine.connect() as connection:
+        query = text("Update users set amtsave=:amtsave where email=:email")
+        connection.execute(query,{
+            "email":email,
+            "amtsave":amtsave
+        })
+        connection.commit()
+        return jsonify({'Message':f"{query}"})
 
 @app.route('/loanlist',methods=['POST'])
 def loanlist():
@@ -230,7 +327,16 @@ def loanlist():
         result = connection.execute(query,{
             "email":email
         }).fetchall()
-    return jsonify({'loanlist':result})
+        send = []
+        for i in result:
+            temp = []
+            for j in i:
+                if type(j).__name__ == "str":
+                    temp.append(j.rstrip())
+                else:
+                    temp.append(j)
+            send.append(temp)
+    return jsonify({'loanlist':send})
 
 
 @app.route('/addloan',methods=['POST'])
@@ -242,6 +348,7 @@ def addloan():
         loanamt = body['loanamt']
         loanint = body['loanint']
         loantime = body['loantime']
+        print(body)
         with db.engine.connect() as connection:
             advice = descriploan(email,loanname,loanamt,loanint,loantime)
             query = text("insert into loan values (:email,:loanname,:loanamt,:loanint,:loantime,:advice)")
@@ -253,29 +360,24 @@ def addloan():
                 "loantime":loantime,
                 "advice":advice
             })
-            return jsonify({'Message':'Successs'}),200
-    except:
-        return jsonify({'Message':'Error has occured'}),404
+            connection.commit()
+            return jsonify({'Message':'Success'}),200
+    except Exception as e:
+        return jsonify({'Message':f"{e}"}),404
     
 
 def descriploan(email,loanname,loanamt,loanint,loantime):
-
     earning = 0
-    query = text("select amount,amounttype from fixedexpense where email=:email")
-    with db.engine.connect() as connection:
-        result = connection.execute(query,{
+    with db.engine.connect() as connec:
+        query = text("select amount,amounttype from fixedexpense where email=:email")
+        result = connec.execute(query,{
             "email":email
         }).fetchall()
+        connec.commit()
         for i in result:
-            earning += i[1] == 'inflow' and i[0] or -i[0]
-        
-        query = text("Give a html insertable text on step approach as on how someone earning :earning can finish a loan having the loan amount as :loanamt , loan interest as :loanint and loan time as :loantime in india and if it is not possible mention the same, please take the money to be in rupees and give code that can be used in html directly and dont mention html anywhere")
-        connection.execute(query,{
-            "earning":earning,
-            "loanamt":loanamt,
-            "loanint":loanint,
-            "loantime":loantime
-        })
+            find = i[1].rstrip()
+            earning += find == 'inflow' and i[0] or -i[0]
+        query = f"Give a html insertable text on step approach as on how someone earning {earning} can finish a loan having the loan amount as {loanamt} , loan interest as {loanint} and loan time as {loantime} in india and if it is not possible mention the same, please take the money to be in rupees and give code that can be used in html directly and dont mention html anywhere"
         response = model.generate_content(query)
         advice = response.text
         cleaned = re.sub(r'```|html', '', advice)
