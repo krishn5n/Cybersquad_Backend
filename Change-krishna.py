@@ -7,7 +7,7 @@ import google.generativeai as genai
 import re
 
 app = Flask(__name__)
-app.config['SQLALCHEMY_DATABASE_URI'] = 'postgresql://cyber:3an2icE0pY11vZgaPxPucjVZIkfdfIg2@dpg-cql4ip3qf0us73brpjug-a.singapore-postgres.render.com/cybersquad'
+app.config['SQLALCHEMY_DATABASE_URI'] = 'postgresql://postgres:keerkrish@localhost:5432/postgres'
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 db = SQLAlchemy(app)
 
@@ -17,7 +17,7 @@ model = genai.GenerativeModel('gemini-1.5-flash')
 
 CORS(app)
 
-
+#Works
 @app.route('/signin',methods=['POST'])
 def signin():
     try:
@@ -68,7 +68,6 @@ def test():
     with db.engine.connect() as connec:
         query = text("Select * from users")
         result = connec.execute(query).fetchall()
-
         return jsonify({'Message':f"{result}"})
 
 @app.route('/balanceinfo', methods=['POST'])
@@ -130,7 +129,8 @@ def addspend():
     month = current_date.month
     year = current_date.year
     dateofadd = current_date.strftime('%Y-%m-%d')
-
+    print(month,year,dateofadd)
+    month = 9
     try:
         with db.engine.connect() as connection:
             # Adding to allexpense
@@ -177,7 +177,8 @@ def addspend():
         return jsonify({'message': 'User updated successfully'}), 200
     except Exception as e:
         return jsonify({'error': str(e)}), 500
-    
+
+#Works   
 @app.route('/addfixed', methods=['POST'])
 def addfixed():
     data = request.json
@@ -195,7 +196,7 @@ def addfixed():
         conn.commit()
         return jsonify({'message': 'User updated successfully'}), 200
 
-
+#Works
 @app.route('/influxlist',methods=['GET'])
 def influxlist():
     query = text("Select amountname,amount from fixedexpense where amounttype='inflow'")
@@ -214,6 +215,7 @@ def influxlist():
             send.append(temp)
     return jsonify({'Values':send})
 
+#Works
 @app.route('/addinflux',methods=['POST'])
 def addinflux():
     data = request.json
@@ -259,6 +261,7 @@ def bargraph():
     current_date = dt.date.today()
     month = current_date.month
     year = current_date.year
+    month = 9
     casual = []
     unexpected =[]
     variable = []
@@ -267,28 +270,28 @@ def bargraph():
     with db.engine.connect() as connection:
         for i in range(3,-1,-1):
             query = text("Select amounttype,amount from monthamt where email=:email and monthno=:month and year=:year")
-            if(month-i<=0):
-                year-=1
-                month=12-(month-i)
-                months.append(month)
-            else:
-                months.append(month-i)
-            
             result = connection.execute(query,{
                 "email":email,
                 "month":month-i,
                 "year":year
             }).fetchall()
 
-            connection.commit()
-            for j in result:
-                find = j[0].rstrip()
-                if find=="unexpected":
-                    unexpected.append(j[1])
-                elif find=="variable":
-                    variable.append(j[1])
-                else:   
-                    casual.append(j[1])
+            if len(result)!=0:
+                if(month-i<=0):
+                    year-=1
+                    month=12-(month-i)
+                    months.append(month)
+                else:
+                    months.append(month-i)
+                connection.commit()
+                for j in result:
+                    find = j[0].rstrip()
+                    if find=="unexpected":
+                        unexpected.append(j[1])
+                    elif find=="variable":
+                        variable.append(j[1])
+                    else:   
+                        casual.append(j[1])
 
         
         query = text("Select amount,amounttype from fixedexpense where email=:email")
