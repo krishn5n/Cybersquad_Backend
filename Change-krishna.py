@@ -20,7 +20,6 @@ model = genai.GenerativeModel('gemini-1.5-flash')
 
 CORS(app)
 
-#Works
 @app.route('/signin',methods=['POST'])
 def signin():
     try:
@@ -181,7 +180,6 @@ def addspend():
     except Exception as e:
         return jsonify({'error': str(e)}), 500
 
-#Works   
 @app.route('/addfixed', methods=['POST'])
 def addfixed():
     data = request.json
@@ -189,17 +187,12 @@ def addfixed():
     expensename = data['expensename']
     amt = int(data['amount'])
     expensetype = data['amounttype']
-    #print(email,expensename,amt,expensetype)
-    #print(type(email),type(expensename),type(amt),type(expensetype))
     query = text("INSERT INTO fixedexpense VALUES (:email, :expensename, :amt, :expensetype)")
-    # Execute the query using SQLAlchemy's connection
-    #print(query)
     with db.engine.connect() as conn:
         conn.execute(query, {"email":email, "expensename":expensename, "amt":amt, "expensetype":expensetype})
         conn.commit()
         return jsonify({'message': 'User updated successfully'}), 200
 
-#Works
 @app.route('/influxlist',methods=['GET'])
 def influxlist():
     query = text("Select amountname,amount from fixedexpense where amounttype='inflow'")
@@ -210,7 +203,6 @@ def influxlist():
         for i in object:
             temp = []
             for j in i:
-                #print(type(j))
                 if type(j).__name__ == "str":
                     temp.append(j.rstrip())
                 else:
@@ -218,7 +210,6 @@ def influxlist():
             send.append(temp)
     return jsonify({'Values':send})
 
-#Works
 @app.route('/addinflux',methods=['POST'])
 def addinflux():
     data = request.json
