@@ -131,8 +131,6 @@ def addspend():
     month = current_date.month
     year = current_date.year
     dateofadd = current_date.strftime('%Y-%m-%d')
-    print(month,year,dateofadd)
-    month = 9
     try:
         with db.engine.connect() as connection:
             # Adding to allexpense
@@ -255,7 +253,6 @@ def bargraph():
     current_date = dt.date.today()
     month = current_date.month
     year = current_date.year
-    month = 9
     casual = []
     unexpected =[]
     variable = []
