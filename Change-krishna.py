@@ -4,14 +4,17 @@ from flask_sqlalchemy import SQLAlchemy
 from sqlalchemy import text
 import datetime as dt
 import google.generativeai as genai
+from dotenv import load_dotenv
+import os
 import re
 
 app = Flask(__name__)
-app.config['SQLALCHEMY_DATABASE_URI'] = 'postgresql://postgres:keerkrish@localhost:5432/postgres'
+load_dotenv()
+app.config['SQLALCHEMY_DATABASE_URI'] = os.getenv('DB_URL')
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 db = SQLAlchemy(app)
 
-API_KEY = 'AIzaSyDYZbw_k1sDSg4CHgGP_1IK0iuIf8v9Ndo'
+API_KEY = os.getenv('API_KEY')
 genai.configure(api_key=API_KEY)
 model = genai.GenerativeModel('gemini-1.5-flash')
 
